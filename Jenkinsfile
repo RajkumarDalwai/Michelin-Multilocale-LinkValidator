@@ -89,7 +89,6 @@ pipeline {
                                 npx cypress run ^
                                     --spec "cypress/e2e/Tests/**/*.cy.js" ^
                                     --env baseUrl="${BASE_URL}",locale="${locale}",environment="${ENVIRONMENT}" ^
-                                    --headed=false ^
                                     --browser chrome ^
                                     --record false || exit /b 0
                             """
@@ -99,7 +98,6 @@ pipeline {
                             npx cypress run ^
                                 --spec "cypress/e2e/Tests/**/*.cy.js" ^
                                 --env baseUrl="${BASE_URL}",locale="${LOCALE}",environment="${ENVIRONMENT}" ^
-                                --headed=false ^
                                 --browser chrome ^
                                 --record false || exit /b 0
                         """
@@ -118,9 +116,9 @@ pipeline {
                     start /B node app.js > server.log 2>&1
 
                     echo Waiting for server startup...
-                    timeout /t 8 /nobreak >nul
+                    ping 127.0.0.1 -n 9 >nul
 
-                    :: Health check with retry (Windows batch style)
+                    :: Health check with retry
                     set "health_ok="
                     for /L %%i in (1,1,6) do (
                         curl -s -f http://localhost:${MCP_SERVER_PORT}/health >nul 2>&1 && (
@@ -129,7 +127,7 @@ pipeline {
                             goto :health_done
                         )
                         echo Retry %%i/6...
-                        timeout /t 3 /nobreak >nul
+                        ping 127.0.0.1 -n 4 >nul
                     )
                     :health_done
                     if not defined health_ok echo Warning: server did not become healthy in time
@@ -179,8 +177,10 @@ pipeline {
                     copy report-ui\\style.css   dashboard\\  >nul 2>&1 || echo style.css not copied
                     copy report-ui\\script.js   dashboard\\  >nul 2>&1 || echo script.js not copied
 
-                    :: Copy reports if they exist
-                    if exist cypress\\reports xcopy /s /y /i cypress\\reports dashboard\\data >nul 2>&1 || echo No reports copied
+                    if exist cypress\\reports (
+                        if not exist dashboard\\data mkdir dashboard\\data
+                        xcopy /s /y /i cypress\\reports dashboard\\data >nul 2>&1 || echo No reports copied
+                    )
 
                     echo Dashboard prepared
                     dir dashboard
@@ -203,13 +203,10 @@ pipeline {
                     echo Artifacts prepared
                 '''
 
-                archiveArtifacts artifacts: '''
-                    build_artifacts/**/*
-                    dashboard/**/*
-                    cypress/reports/**/*.json
-                    api_*.json
-                    server/server.log
-                ''', allowEmptyArchive: true
+                archiveArtifacts(
+                    artifacts: 'build_artifacts/**/*,dashboard/**/*,cypress/reports/**/*.json,api_*.json,server/server.log',
+                    allowEmptyArchive: true
+                )
             }
         }
 
@@ -232,16 +229,18 @@ pipeline {
 
                     if exist api_summary.json (
                         echo Report Statistics: >> BUILD_SUMMARY.txt
-                        python - << "EOF"
-import json
-with open('api_summary.json', encoding='utf-8') as f:
-    data = json.load(f)
-with open('BUILD_SUMMARY.txt', 'a', encoding='utf-8') as out:
-    out.write(f"  Total Locales: {data.get('totalLocales', 'N/A')}\\n")
-    out.write(f"  Total Broken Links: {data.get('totalBrokenLinks', 'N/A')}\\n")
-    out.write(f"  Total Successful: {data.get('totalSuccessful', 'N/A')}\\n")
-    out.write(f"  Average Success Rate: {data.get('averageSuccessRate', 'N/A')}%%\\n")
-EOF
+
+                        echo import json > summary_stats.py
+                        echo with open('api_summary.json', encoding='utf-8') as f: >> summary_stats.py
+                        echo     data = json.load(f) >> summary_stats.py
+                        echo with open('BUILD_SUMMARY.txt', 'a', encoding='utf-8') as out: >> summary_stats.py
+                        echo     out.write(f"  Total Locales: {data.get('totalLocales', 'N/A')}\\n") >> summary_stats.py
+                        echo     out.write(f"  Total Broken Links: {data.get('totalBrokenLinks', 'N/A')}\\n") >> summary_stats.py
+                        echo     out.write(f"  Total Successful: {data.get('totalSuccessful', 'N/A')}\\n") >> summary_stats.py
+                        echo     out.write(f"  Average Success Rate: {data.get('averageSuccessRate', 'N/A')}%%\\n") >> summary_stats.py
+
+                        python summary_stats.py
+                        del summary_stats.py 2>nul || echo.
                     )
 
                     echo. >> BUILD_SUMMARY.txt
@@ -260,7 +259,7 @@ EOF
             bat '''
                 echo Stopping MCP server...
                 taskkill /F /IM node.exe /T >nul 2>&1 || echo No node processes found
-                timeout /t 2 /nobreak >nul
+                ping 127.0.0.1 -n 3 >nul
                 echo Cleanup complete
             '''
         }
