@@ -268,7 +268,7 @@ pipeline {
                 REM Start Express server in the background
                 cd server
                 echo [%%DATE%% %%TIME%%] Starting MCP server on port 3000...
-                start /B node app.js > ..\dashboard_server.log 2>&1
+                start /B node app.js > ../dashboard_server.log 2>&1
                 cd ..
                 
                 REM Wait for server to start
