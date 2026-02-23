@@ -260,20 +260,43 @@ pipeline {
             bat 'type BUILD_SUMMARY.txt || echo No summary available'
             bat '''
                 echo.
-                echo 🚀 Starting Express server and opening dashboard...
+                echo.
+                echo ════════════════════════════════════════════════════════════
+                echo 🚀 DASHBOARD READY - STARTING EXPRESS SERVER
+                echo ════════════════════════════════════════════════════════════
                 
                 REM Start Express server in the background
                 cd server
-                start /B node app.js >nul 2>&1
+                echo [%%DATE%% %%TIME%%] Starting MCP server on port 3000...
+                start /B node app.js > ..\dashboard_server.log 2>&1
                 cd ..
                 
                 REM Wait for server to start
+                echo Waiting for server to initialize... (3 seconds)
                 timeout /t 3 /nobreak
                 
-                REM Open dashboard in default browser
-                start http://localhost:3000
+                echo.
+                echo ════════════════════════════════════════════════════════════
+                echo 📊 DASHBOARD URL:
+                echo ════════════════════════════════════════════════════════════
+                echo.
+                echo    🔗 http://localhost:3000
+                echo.
+                echo ════════════════════════════════════════════════════════════
+                echo.
+                echo Opening dashboard in your default browser...
+                echo [%%DATE%% %%TIME%%] Dashboard is available at http://localhost:3000
                 
-                echo ✅ Dashboard opened at http://localhost:3000
+                REM Try to open in default browser (proper Windows syntax)
+                powershell -Command "Start-Process 'http://localhost:3000'" >nul 2>&1 || (
+                    echo INFO: Could not auto-open browser - please navigate manually to:
+                    echo       http://localhost:3000
+                )
+                
+                echo.
+                echo ✅ Dashboard started successfully!
+                echo.
+                echo Server logs saved to: dashboard_server.log
             '''
         }
 
