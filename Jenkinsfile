@@ -258,6 +258,23 @@ pipeline {
 ╚════════════════════════════════════════════════════════════╝
             '''
             bat 'type BUILD_SUMMARY.txt || echo No summary available'
+            bat '''
+                echo.
+                echo 🚀 Starting Express server and opening dashboard...
+                
+                REM Start Express server in the background
+                cd server
+                start /B node app.js >nul 2>&1
+                cd ..
+                
+                REM Wait for server to start
+                timeout /t 3 /nobreak
+                
+                REM Open dashboard in default browser
+                start http://localhost:3000
+                
+                echo ✅ Dashboard opened at http://localhost:3000
+            '''
         }
 
         failure {
