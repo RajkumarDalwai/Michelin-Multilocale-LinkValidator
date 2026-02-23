@@ -8,7 +8,7 @@ pipeline {
     }
 
     parameters {
-        string(
+        choice(
             name: 'PLATFORM',
             choices: ['Automated-Vehicle-Inspection', 'Fondation', 'Laventure'],
             description: 'Platform to validate (e.g. Automated-Vehicle-Inspection, Fondation, Laventure)'
@@ -23,9 +23,9 @@ pipeline {
             choices: ['RC', 'UAT', 'Production'],
             description: 'Select environment'
         )
-        string(
+        choice(
             name: 'SCOPE',
-            defaultValue: 'HomePage','ProductPages','AllPages'
+            choices: ['HomePage', 'ProductPages', 'AllPages'],
             description: 'Page scope to validate (home, product, category, all)'
         )
         booleanParam(
