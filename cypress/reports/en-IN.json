@@ -1,0 +1,30 @@
+{
+  "platform": "Web",
+  "locale": "en-IN",
+  "environment": "Production",
+  "pagesScanned": 1,
+  "totalLinks": 108,
+  "successCount": 105,
+  "brokenLinks": [
+    {
+      "page": "https://automated-vehicle-inspection.michelin.com/",
+      "url": "https://app.livestorm.co/proovstation/proovstations-keynote-english-version?type=detailed&utm_source=tire+ia+website&utm_medium=news&utm_campaign=keynote-avril&utm_id=keynote&utm_term=keynote&utm_content=cta_register",
+      "status": 404,
+      "responseTime": 1335
+    },
+    {
+      "page": "https://automated-vehicle-inspection.michelin.com/",
+      "url": "https://app.livestorm.co/proovstation/proovstations-keynote-english-version?type=detailed&utm_source=tire+ia+website&utm_medium=news&utm_campaign=keynote-avril&utm_id=keynote&utm_term=keynote&utm_content=cta_register",
+      "status": 404,
+      "responseTime": 344
+    },
+    {
+      "page": "https://automated-vehicle-inspection.michelin.com/",
+      "url": "https://app.livestorm.co/proovstation/proovstations-keynote-english-version?type=detailed&utm_source=tire+ia+website&utm_medium=news&utm_campaign=keynote-avril&utm_id=keynote&utm_term=keynote&utm_content=cta_register",
+      "status": 404,
+      "responseTime": 313
+    }
+  ],
+  "skipped": 13,
+  "timestamp": "2026-02-22T05:00:56.307Z"
+}

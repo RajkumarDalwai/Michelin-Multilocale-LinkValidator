@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Validation Report Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>🔍 Multi-Locale Link Validation Report</h1>
+      <p class="subtitle">AI-Powered Web Link Analysis Dashboard</p>
+    </header>
+
+    <!-- Controls -->
+    <div class="controls">
+      <input type="text" id="localeInput" placeholder="Enter locale (e.g., en-IN, fr-FR)" value="en-IN">
+      <button onclick="loadReport()">Load Report</button>
+      <button onclick="loadSummary()">Load Summary</button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid" id="summaryCards">
+      <div class="card">
+        <h3>📊 Total Links</h3>
+        <p class="metric" id="totalLinks">-</p>
+      </div>
+      <div class="card">
+        <h3>✅ Successful</h3>
+        <p class="metric success" id="successCount">-</p>
+      </div>
+      <div class="card">
+        <h3>❌ Broken (404)</h3>
+        <p class="metric error" id="brokenCount">-</p>
+      </div>
+      <div class="card">
+        <h3>⚠️ Server Errors (5xx)</h3>
+        <p class="metric warning" id="serverErrorCount">-</p>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-grid">
+      <div class="chart-box">
+        <h3>Link Status Distribution</h3>
+        <canvas id="statusChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Locale Comparison</h3>
+        <canvas id="localeChart"></canvas>
+      </div>
+    </div>
+
+    <!-- AI Insights -->
+    <div class="ai-insights card">
+      <h3>🤖 AI Insights</h3>
+      <div id="aiContent">
+        <p class="placeholder">Load a report to see AI-generated insights</p>
+      </div>
+    </div>
+
+    <!-- Broken Links Table -->
+    <div class="table-section">
+      <h3>🔴 Broken Links Detail</h3>
+      <table id="brokenLinksTable">
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Response Time (ms)</th>
+          </tr>
+        </thead>
+        <tbody id="brokenLinksBody">
+          <tr><td colspan="4" class="placeholder">No broken links loaded</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Last updated: <span id="lastUpdated">-</span></p>
+      <p>Powered by Cypress + OpenAI</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

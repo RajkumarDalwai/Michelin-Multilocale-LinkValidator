@@ -1,0 +1,27 @@
+{
+  "name": "link-validator-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Express server for multi-locale link validation reports",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [
+    "mcp",
+    "link-validation",
+    "cypress"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "openai": "^6.22.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
