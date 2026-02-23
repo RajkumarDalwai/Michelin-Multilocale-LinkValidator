@@ -32,8 +32,6 @@ pipeline {
 
     environment {
         NODE_ENV = 'production'
-        REPORTS_DIR = "${WORKSPACE}\\cypress\\reports"
-        DASHBOARD_DIR = "${WORKSPACE}\\report-ui"
         MCP_SERVER_PORT = '3000'
     }
 
@@ -103,7 +101,7 @@ pipeline {
                         """
                     }
                 }
-                echo "✅ Cypress tests completed"
+                echo "Cypress tests completed"
             }
         }
 
@@ -116,21 +114,20 @@ pipeline {
                     start /B node app.js > server.log 2>&1
 
                     echo Waiting for server startup...
-                    ping 127.0.0.1 -n 9 >nul
+                    ping 127.0.0.1 -n 10 >nul
 
-                    :: Health check with retry
                     set "health_ok="
-                    for /L %%i in (1,1,6) do (
+                    for /L %%i in (1,1,8) do (
                         curl -s -f http://localhost:${MCP_SERVER_PORT}/health >nul 2>&1 && (
                             echo Server health check passed
                             set health_ok=1
-                            goto :health_done
+                            goto :health_ok
                         )
-                        echo Retry %%i/6...
+                        echo Retry %%i/8...
                         ping 127.0.0.1 -n 4 >nul
                     )
-                    :health_done
-                    if not defined health_ok echo Warning: server did not become healthy in time
+                    :health_ok
+                    if not defined health_ok echo WARNING: Server health check failed after retries
                 """
             }
         }
@@ -139,29 +136,19 @@ pipeline {
             steps {
                 echo '📋 Generating structured reports...'
                 bat """
-                    cd ${WORKSPACE}
+                    cd "${WORKSPACE}"
 
-                    if "${LOCALE}"=="ALL" if not "${GENERATE_COMPARISON_REPORT}"=="true" goto :single_locale
-
-                    echo Fetching summary report...
-                    curl -s http://localhost:${MCP_SERVER_PORT}/api/reports -o api_summary.json
+                    curl -s -f http://localhost:${MCP_SERVER_PORT}/api/reports -o api_summary.json || echo "Summary fetch failed"
 
                     if exist api_summary.json (
-                        echo Summary report generated
-                        type api_summary.json | python -m json.tool
+                        echo.
+                        echo Summary report content:
+                        type api_summary.json
+                        echo.
+                        python -m json.tool api_summary.json || echo "JSON pretty-print failed"
+                    ) else (
+                        echo No summary report was generated
                     )
-                    goto :reports_done
-
-                    :single_locale
-                    echo Fetching locale-specific report: ${LOCALE}
-                    curl -s http://localhost:${MCP_SERVER_PORT}/api/reports/${LOCALE} -o api_locale_report.json
-
-                    if exist api_locale_report.json (
-                        echo Locale report generated
-                        type api_locale_report.json | python -m json.tool
-                    )
-
-                    :reports_done
                 """
             }
         }
@@ -170,19 +157,17 @@ pipeline {
             steps {
                 echo '📊 Preparing interactive dashboard...'
                 bat '''
-                    echo Copying dashboard files...
                     if not exist dashboard mkdir dashboard
 
-                    copy report-ui\\index.html dashboard\\  >nul 2>&1 || echo index.html not copied
-                    copy report-ui\\style.css   dashboard\\  >nul 2>&1 || echo style.css not copied
-                    copy report-ui\\script.js   dashboard\\  >nul 2>&1 || echo script.js not copied
+                    copy report-ui\\index.html dashboard\\  >nul 2>&1 || echo index.html missing
+                    copy report-ui\\style.css   dashboard\\  >nul 2>&1 || echo style.css missing
+                    copy report-ui\\script.js   dashboard\\  >nul 2>&1 || echo script.js missing
 
                     if exist cypress\\reports (
                         if not exist dashboard\\data mkdir dashboard\\data
-                        xcopy /s /y /i cypress\\reports dashboard\\data >nul 2>&1 || echo No reports copied
+                        xcopy /s /y /i cypress\\reports dashboard\\data >nul 2>&1 || echo No Cypress reports copied
                     )
 
-                    echo Dashboard prepared
                     dir dashboard
                 '''
             }
@@ -192,60 +177,60 @@ pipeline {
             steps {
                 echo '💾 Archiving build artifacts...'
                 bat '''
-                    echo Creating artifacts archive...
                     if not exist build_artifacts mkdir build_artifacts
 
-                    xcopy /s /y /i cypress\\reports      build_artifacts\\reports     >nul 2>&1 || echo No reports
-                    xcopy /s /y /i dashboard             build_artifacts\\dashboard    >nul 2>&1 || echo No dashboard
-                    copy api_*.json                      build_artifacts\\            >nul 2>&1 || echo No api json
+                    xcopy /s /y /i cypress\\reports      build_artifacts\\reports     >nul 2>&1 || echo No reports folder
+                    xcopy /s /y /i dashboard             build_artifacts\\dashboard    >nul 2>&1 || echo No dashboard folder
+                    copy api_*.json                      build_artifacts\\            >nul 2>&1 || echo No api json files
                     copy server\\server.log              build_artifacts\\            >nul 2>&1 || echo No server log
-
-                    echo Artifacts prepared
                 '''
 
                 archiveArtifacts(
                     artifacts: 'build_artifacts/**/*,dashboard/**/*,cypress/reports/**/*.json,api_*.json,server/server.log',
-                    allowEmptyArchive: true
+                    allowEmptyArchive: true,
+                    fingerprint: true
                 )
             }
         }
 
         stage('📧 Generate Report Summary') {
             steps {
-                echo '📋 Generating test summary...'
+                echo '📋 Generating final test summary...'
                 bat '''
-                    echo Build Report Summary > BUILD_SUMMARY.txt
-                    echo =================== >> BUILD_SUMMARY.txt
-                    echo Job: %JOB_NAME% >> BUILD_SUMMARY.txt
-                    echo Build: %BUILD_NUMBER% >> BUILD_SUMMARY.txt
-                    echo Status: SUCCESS >> BUILD_SUMMARY.txt
-                    echo Timestamp: %DATE% %TIME% >> BUILD_SUMMARY.txt
-                    echo. >> BUILD_SUMMARY.txt
-                    echo Parameters: >> BUILD_SUMMARY.txt
-                    echo   Locale: ${LOCALE} >> BUILD_SUMMARY.txt
-                    echo   Environment: ${ENVIRONMENT} >> BUILD_SUMMARY.txt
-                    echo   Base URL: ${BASE_URL} >> BUILD_SUMMARY.txt
-                    echo. >> BUILD_SUMMARY.txt
+                    > BUILD_SUMMARY.txt echo Build Report Summary
+                    >> BUILD_SUMMARY.txt echo ===================
+                    >> BUILD_SUMMARY.txt echo Job: %JOB_NAME%
+                    >> BUILD_SUMMARY.txt echo Build: %BUILD_NUMBER%
+                    >> BUILD_SUMMARY.txt echo Status: SUCCESS
+                    >> BUILD_SUMMARY.txt echo Timestamp: %DATE% %TIME%
+                    >> BUILD_SUMMARY.txt echo.
+                    >> BUILD_SUMMARY.txt echo Parameters:
+                    >> BUILD_SUMMARY.txt echo   Locale:      "${LOCALE}"
+                    >> BUILD_SUMMARY.txt echo   Environment: "${ENVIRONMENT}"
+                    >> BUILD_SUMMARY.txt echo   Base URL:    "${BASE_URL}"
+                    >> BUILD_SUMMARY.txt echo.
 
                     if exist api_summary.json (
-                        echo Report Statistics: >> BUILD_SUMMARY.txt
+                        >> BUILD_SUMMARY.txt echo Report Statistics:
 
-                        echo import json > summary_stats.py
-                        echo with open('api_summary.json', encoding='utf-8') as f: >> summary_stats.py
-                        echo     data = json.load(f) >> summary_stats.py
-                        echo with open('BUILD_SUMMARY.txt', 'a', encoding='utf-8') as out: >> summary_stats.py
-                        echo     out.write(f"  Total Locales: {data.get('totalLocales', 'N/A')}\\n") >> summary_stats.py
-                        echo     out.write(f"  Total Broken Links: {data.get('totalBrokenLinks', 'N/A')}\\n") >> summary_stats.py
-                        echo     out.write(f"  Total Successful: {data.get('totalSuccessful', 'N/A')}\\n") >> summary_stats.py
-                        echo     out.write(f"  Average Success Rate: {data.get('averageSuccessRate', 'N/A')}%%\\n") >> summary_stats.py
+                        > "summary_stats.py" echo import json
+                        >> "summary_stats.py" echo with open('api_summary.json', encoding='utf-8') as f:
+                        >> "summary_stats.py" echo     data = json.load(f)
+                        >> "summary_stats.py" echo with open('BUILD_SUMMARY.txt', 'a', encoding='utf-8') as out:
+                        >> "summary_stats.py" echo     out.write(f"  Total Locales:         {data.get('totalLocales', 'N/A')}\\n")
+                        >> "summary_stats.py" echo     out.write(f"  Total Broken Links:    {data.get('totalBrokenLinks', 'N/A')}\\n")
+                        >> "summary_stats.py" echo     out.write(f"  Total Successful:      {data.get('totalSuccessful', 'N/A')}\\n")
+                        >> "summary_stats.py" echo     out.write(f"  Avg Success Rate:      {data.get('averageSuccessRate', 'N/A')} %%\\n")
 
-                        python summary_stats.py
-                        del summary_stats.py 2>nul || echo.
+                        python "summary_stats.py" || echo WARNING: Python statistics step failed
+                        del "summary_stats.py" 2>nul
+                    ) else (
+                        >> BUILD_SUMMARY.txt echo WARNING: No api_summary.json found - statistics skipped
                     )
 
-                    echo. >> BUILD_SUMMARY.txt
-                    echo Dashboard URL: >> BUILD_SUMMARY.txt
-                    echo   ${BUILD_URL}artifact/dashboard/index.html >> BUILD_SUMMARY.txt
+                    >> BUILD_SUMMARY.txt echo.
+                    >> BUILD_SUMMARY.txt echo Dashboard URL:
+                    >> BUILD_SUMMARY.txt echo   ${BUILD_URL}artifact/dashboard/index.html
 
                     type BUILD_SUMMARY.txt
                 '''
@@ -257,10 +242,10 @@ pipeline {
         always {
             echo '🧹 Cleanup & Finalization...'
             bat '''
-                echo Stopping MCP server...
-                taskkill /F /IM node.exe /T >nul 2>&1 || echo No node processes found
-                ping 127.0.0.1 -n 3 >nul
-                echo Cleanup complete
+                echo Stopping server...
+                taskkill /F /IM node.exe /T >nul 2>&1 || echo No node.exe processes found
+                ping 127.0.0.1 -n 4 >nul
+                echo Cleanup finished
             '''
         }
 
@@ -270,7 +255,7 @@ pipeline {
 ║                    BUILD SUCCESSFUL ✅                      ║
 ╚════════════════════════════════════════════════════════════╝
             '''
-            bat 'type BUILD_SUMMARY.txt'
+            bat 'type BUILD_SUMMARY.txt || echo No summary available'
         }
 
         failure {
@@ -280,10 +265,6 @@ pipeline {
 ╚════════════════════════════════════════════════════════════╝
             '''
             bat 'type server\\server.log || echo No server logs available'
-        }
-
-        unstable {
-            echo 'Build unstable - check logs'
         }
 
         cleanup {
