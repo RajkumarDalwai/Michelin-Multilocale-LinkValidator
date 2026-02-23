@@ -10,7 +10,7 @@ pipeline {
     parameters {
         string(
             name: 'PLATFORM',
-            defaultValue: '',
+            choices: ['Automated-Vehicle-Inspection', 'Fondation', 'Laventure'],
             description: 'Platform to validate (e.g. Automated-Vehicle-Inspection, Fondation, Laventure)'
         )
         choice(
