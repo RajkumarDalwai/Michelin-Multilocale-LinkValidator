@@ -94,11 +94,27 @@ pipeline {
                     for (locale in locales) {
                         echo "Testing locale: ${locale}"
                         bat """
+                            echo.
+                            echo ==========================================
+                            echo Running link validation for: ${locale}
+                            echo ==========================================
                             npx cypress run ^
                                 --spec "cypress/e2e/Tests/**/*.cy.js" ^
                                 --env baseUrl="${HARD_CODED_BASE_URL}",locale="${locale}",environment="${ENVIRONMENT}",platform="${PLATFORM}",scope="${SCOPE}" ^
                                 --browser chrome ^
-                                --record false || exit /b 0
+                                --record false
+                            
+                            REM Capture test exit code but always pass the build
+                            set TEST_RESULT=!ERRORLEVEL!
+                            if !TEST_RESULT! neq 0 (
+                                echo.
+                                echo ⚠️  IMPORTANT: Tests completed with broken links detected
+                                echo    Build continues anyway (treating broken links as non-fatal)
+                                echo    Check reports in: cypress/reports/${locale}.json
+                            ) else (
+                                echo ✅ All links validated successfully for ${locale}
+                            )
+                            exit /b 0
                         """
                     }
                 }
