@@ -8,20 +8,25 @@ pipeline {
     }
 
     parameters {
+        string(
+            name: 'PLATFORM',
+            defaultValue: '',
+            description: 'Platform to validate (e.g. Automated-Vehicle-Inspection, Fondation, Laventure)'
+        )
         choice(
             name: 'LOCALE',
-            choices: ['ALL', 'en-IN', 'en-US', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'ja-JP', 'zh-CN'],
+            choices: ['ALL', 'en-IN', 'en-US', 'fr-FR', 'de-DE', 'es-ES', 'it-IT', 'pt-BR', 'ja-JP'],
             description: 'Select locale to scan (ALL = scan all locales)'
         )
         choice(
             name: 'ENVIRONMENT',
-            choices: ['Production', 'Staging', 'Development'],
+            choices: ['RC', 'UAT', 'Production'],
             description: 'Select environment'
         )
         string(
-            name: 'BASE_URL',
-            defaultValue: 'https://automated-vehicle-inspection.michelin.com/',
-            description: 'Base URL to scan'
+            name: 'SCOPE',
+            defaultValue: 'HomePage','ProductPages','AllPages'
+            description: 'Page scope to validate (home, product, category, all)'
         )
         booleanParam(
             name: 'GENERATE_COMPARISON_REPORT',
@@ -33,6 +38,8 @@ pipeline {
     environment {
         NODE_ENV = 'production'
         MCP_SERVER_PORT = '3000'
+        // Base URL is now hardcoded here (no longer a parameter)
+        HARD_CODED_BASE_URL = 'https://automated-vehicle-inspection.michelin.com/'
     }
 
     stages {
@@ -41,12 +48,13 @@ pipeline {
                 echo "╔════════════════════════════════════════════════════════════╗"
                 echo "║     Michelin Multi-Locale Link Validator - Jenkins CI      ║"
                 echo "╚════════════════════════════════════════════════════════════╝"
-                echo "🔍 Configuration:"
-                echo "   Locale: ${LOCALE}"
-                echo "   Environment: ${ENVIRONMENT}"
-                echo "   Base URL: ${BASE_URL}"
-                echo "   Comparison Report: ${GENERATE_COMPARISON_REPORT}"
-                echo "   Workspace: ${WORKSPACE}"
+                echo "🔍 Build Parameters:"
+                echo "   Platform:      ${params.PLATFORM ?: 'Not specified'}"
+                echo "   Locale:        ${params.LOCALE}"
+                echo "   Environment:   ${params.ENVIRONMENT}"
+                echo "   Page Scope:    ${params.SCOPE}"
+                echo "   Comparison:    ${params.GENERATE_COMPARISON_REPORT}"
+                echo "   Workspace:     ${WORKSPACE}"
                 bat 'node --version && npm --version'
             }
         }
@@ -79,23 +87,16 @@ pipeline {
             steps {
                 echo "🎯 Running Cypress link validation tests..."
                 script {
-                    if (params.LOCALE == 'ALL') {
-                        def locales = ['en-IN', 'en-US', 'fr-FR', 'de-DE', 'es-ES']
-                        for (locale in locales) {
-                            echo "Testing locale: ${locale}"
-                            bat """
-                                npx cypress run ^
-                                    --spec "cypress/e2e/Tests/**/*.cy.js" ^
-                                    --env baseUrl="${BASE_URL}",locale="${locale}",environment="${ENVIRONMENT}" ^
-                                    --browser chrome ^
-                                    --record false || exit /b 0
-                            """
-                        }
-                    } else {
+                    def locales = (params.LOCALE == 'ALL') ? 
+                        ['en-IN', 'en-US', 'fr-FR', 'de-DE', 'es-ES', 'it-IT', 'pt-BR', 'ja-JP'] : 
+                        [params.LOCALE]
+
+                    for (locale in locales) {
+                        echo "Testing locale: ${locale}"
                         bat """
                             npx cypress run ^
                                 --spec "cypress/e2e/Tests/**/*.cy.js" ^
-                                --env baseUrl="${BASE_URL}",locale="${LOCALE}",environment="${ENVIRONMENT}" ^
+                                --env baseUrl="${HARD_CODED_BASE_URL}",locale="${locale}",environment="${ENVIRONMENT}",platform="${PLATFORM}",scope="${SCOPE}" ^
                                 --browser chrome ^
                                 --record false || exit /b 0
                         """
@@ -205,9 +206,10 @@ pipeline {
                     >> BUILD_SUMMARY.txt echo Timestamp: %DATE% %TIME%
                     >> BUILD_SUMMARY.txt echo.
                     >> BUILD_SUMMARY.txt echo Parameters:
-                    >> BUILD_SUMMARY.txt echo   Locale:      "${LOCALE}"
-                    >> BUILD_SUMMARY.txt echo   Environment: "${ENVIRONMENT}"
-                    >> BUILD_SUMMARY.txt echo   Base URL:    "${BASE_URL}"
+                    >> BUILD_SUMMARY.txt echo   Platform:     "${PLATFORM}"
+                    >> BUILD_SUMMARY.txt echo   Locale:       "${LOCALE}"
+                    >> BUILD_SUMMARY.txt echo   Environment:  "${ENVIRONMENT}"
+                    >> BUILD_SUMMARY.txt echo   Page Scope:   "${SCOPE}"
                     >> BUILD_SUMMARY.txt echo.
 
                     if exist api_summary.json (
