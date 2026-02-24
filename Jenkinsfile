@@ -110,6 +110,9 @@ pipeline {
             steps {
                 echo '🚀 Starting Express MCP server...'
                 bat """
+                    REM Ensure no previous Node servers are occupying the port
+                    taskkill /F /IM node.exe /T >nul 2>&1 || echo No node.exe processes found
+
                     cd server
                     echo Starting server on port ${MCP_SERVER_PORT}...
                     start /B node app.js > server.log 2>&1
@@ -130,6 +133,12 @@ pipeline {
                     :health_ok
                     if not defined health_ok echo WARNING: Server health check failed after retries
                 """
+
+                // Log the dashboard URL in the Jenkins console (always visible)
+                echo "════════════════════════════════════════════════════════════"
+                echo "📊 DASHBOARD (local): http://localhost:${MCP_SERVER_PORT}"
+                echo "📝 Server logs: server/server.log"
+                echo "════════════════════════════════════════════════════════════"
             }
         }
 
@@ -294,7 +303,15 @@ pipeline {
         }
 
         cleanup {
-            deleteDir()
-        }
-    }
-}
+            success {
+                echo '''
+    ╔════════════════════════════════════════════════════════════╗
+    ║                    BUILD SUCCESSFUL ✅                      ║
+    ╚════════════════════════════════════════════════════════════╝
+                '''
+                bat 'type BUILD_SUMMARY.txt || echo No summary available'
+                echo "════════════════════════════════════════════════════════════"
+                echo "📊 Dashboard artifact is available in the build artifacts or at:"
+                echo "    ${BUILD_URL}artifact/dashboard/index.html"
+                echo "════════════════════════════════════════════════════════════"
+            }
